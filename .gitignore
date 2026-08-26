@@ -1,0 +1,5 @@
+.DS_Store
+*.backup-*
+
+# Machine-specific overrides live outside the repo on purpose.
+.zshrc.local

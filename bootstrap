@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# bootstrap — link this repo's config into place on a Mac.
+#
+# Symlinks rather than copies, so editing a file here takes effect immediately
+# and `git status` shows you anything that has drifted. Safe to re-run: an
+# existing symlink is left alone, and a real file is moved aside before it is
+# replaced, never deleted.
+
+set -euo pipefail
+
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+DRY_RUN=false
+
+[ "${1:-}" = "--dry-run" ] && DRY_RUN=true
+
+if [ -t 1 ]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RESET=$'\033[0m'
+else
+  BOLD=""; DIM=""; GREEN=""; YELLOW=""; RESET=""
+fi
+
+ok()   { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
+skip() { printf '  %s·%s %s%s%s\n' "$DIM" "$RESET" "$DIM" "$*" "$RESET"; }
+warn() { printf '  %s!%s %s\n' "$YELLOW" "$RESET" "$*"; }
+
+link() {
+  local src="$DOTFILES/$1" dest="$HOME/$2"
+  local short="~/$2"
+
+  if [ ! -e "$src" ]; then
+    warn "$1 missing from the repo, skipping"
+    return
+  fi
+
+  if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
+    skip "$short already linked"
+    return
+  fi
+
+  if [ "$DRY_RUN" = true ]; then
+    [ -e "$dest" ] && ok "would back up and link $short" || ok "would link $short"
+    return
+  fi
+
+  mkdir -p "$(dirname "$dest")"
+
+  # A real file here is someone's existing config. Move it, don't remove it —
+  # the whole point of running this on a new machine is that you may not know
+  # what was already there.
+  if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+    mv "$dest" "$dest.backup-$STAMP"
+    warn "backed up existing $short → $short.backup-$STAMP"
+  elif [ -L "$dest" ]; then
+    rm "$dest"
+  fi
+
+  ln -s "$src" "$dest"
+  ok "linked $short"
+}
+
+printf '\n%sLinking dotfiles%s %s(%s)%s\n' "$BOLD" "$RESET" "$DIM" "$DOTFILES" "$RESET"
+[ "$DRY_RUN" = true ] && printf '%sDry run — nothing will change.%s\n' "$YELLOW" "$RESET"
+echo
+
+link "git/gitconfig"        ".gitconfig"
+link "git/ignore"           ".config/git/ignore"
+link "zsh/zshrc"            ".zshrc"
+link "zsh/zprofile"         ".zprofile"
+link "claude/settings.json" ".claude/settings.json"
+
+printf '\n%sChecks%s\n' "$BOLD" "$RESET"
+
+# The reason this repo exists. A machine-local git identity is how a personal
+# address ends up in public commit history, and it is invisible until someone
+# reads the log.
+email="$(git config --global user.email 2>/dev/null || true)"
+case "$email" in
+  *@users.noreply.github.com) skip "git email is a noreply address" ;;
+  "")                         warn "no global git user.email set" ;;
+  *)                          warn "global git user.email is $email — not a noreply address" ;;
+esac
+
+for tool in starship gh jq; do
+  command -v "$tool" >/dev/null 2>&1 \
+    && skip "$tool installed" \
+    || warn "$tool not installed — brew install $tool"
+done
+
+if [ ! -f "$HOME/.zshrc.local" ]; then
+  skip "no ~/.zshrc.local — create one for anything machine-specific"
+fi
+
+printf '\n%sNext%s\n' "$BOLD" "$RESET"
+printf '  · open a new shell, or: source ~/.zshrc\n'
+printf '  · see claude/INSTALLED.md for the Claude Code skills and plugins\n'
+printf '    this machine had, if you want them again\n'
+echo

@@ -1,0 +1,39 @@
+# Prompt. Guarded because a fresh machine has the dotfiles before it has the
+# tools, and an unguarded eval means every new shell opens with an error until
+# you remember to `brew install starship`.
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init zsh)"
+fi
+
+# History
+HISTSIZE=10000
+SAVEHIST=10000
+HISTFILE=~/.zsh_history
+setopt SHARE_HISTORY
+setopt HIST_IGNORE_DUPS
+
+# Directory navigation
+setopt AUTO_CD
+setopt AUTO_PUSHD
+setopt PUSHD_SILENT
+
+# Aliases
+alias ll="ls -la"
+alias gs="git status"
+alias gd="git diff"
+alias gl="git log --oneline -20"
+alias gco="git checkout"
+alias gcb="git checkout -b"
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# Android platform-tools, if they happen to be around. Kept conditional because
+# they live in Downloads, which is a folder things get cleared out of, and a
+# missing PATH entry is easier to miss than a missing tool.
+if [ -d "$HOME/Downloads/platform-tools" ]; then
+  export PATH="$HOME/Downloads/platform-tools:$PATH"
+fi
+
+# Machine-specific bits that shouldn't live in a public repo — work remotes,
+# tokens, one-off paths. Sourced last so it can override anything above.
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"

@@ -1,0 +1,12 @@
+[user]
+	name = Oak
+	email = 5605406+oak-wildwood@users.noreply.github.com
+
+[alias]
+	co = checkout
+	cob = checkout -b
+	latest = pull origin main
+	gp = pull
+	p = pull
+[core]
+	autocrlf = input
