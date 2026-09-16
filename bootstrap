@@ -69,6 +69,7 @@ link "git/ignore"           ".config/git/ignore"
 link "zsh/zshrc"            ".zshrc"
 link "zsh/zprofile"         ".zprofile"
 link "claude/settings.json" ".claude/settings.json"
+link "claude/statusline.sh"   ".claude/statusline-command.sh"
 
 printf '\n%sChecks%s\n' "$BOLD" "$RESET"
 
