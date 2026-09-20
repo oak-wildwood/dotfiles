@@ -25,6 +25,7 @@ alias gl="git log --oneline -20"
 alias gco="git checkout"
 alias gcb="git checkout -b"
 alias cc="claude"
+alias npms="npm start"
 
 export PATH="$HOME/.local/bin:$PATH"
 
