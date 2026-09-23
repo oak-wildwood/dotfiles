@@ -18,6 +18,32 @@ cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
 rl_five=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
 rl_five_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
 rl_week=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+rl_week_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
+
+# --- record usage readings for Cooperage (github.com/oak-wildwood/cooperage) ---
+# Claude Code only exposes subscription usage here, and only while a session is
+# open, and often not at all (anthropics/claude-code#95918). So every non-empty
+# reading is appended to a JSONL file for Cooperage to collect as an Official
+# Reading. A reading identical to the last one is skipped to keep the file small.
+# Any failure is swallowed: the status line must never break over this.
+record_reading() {
+  local dir="${XDG_DATA_HOME:-$HOME/.local/share}/cooperage"
+  local key="$rl_five|$rl_five_reset|$rl_week|$rl_week_reset"
+  mkdir -p "$dir" || return
+  [ "$(cat "$dir/.last-reading" 2>/dev/null)" = "$key" ] && return
+  jq -cn --argjson at "$(date +%s)" \
+    --arg f "$rl_five" --arg fr "$rl_five_reset" \
+    --arg w "$rl_week" --arg wr "$rl_week_reset" '
+    def num: if . == "" or . == "null" then null else tonumber end;
+    {at: $at,
+     five_hour: {used_percentage: ($f | num), resets_at: ($fr | num)},
+     seven_day: {used_percentage: ($w | num), resets_at: ($wr | num)}}' \
+    >> "$dir/official-readings.jsonl" || return
+  printf '%s' "$key" > "$dir/.last-reading"
+}
+if { [ -n "$rl_five" ] && [ "$rl_five" != "null" ]; } || { [ -n "$rl_week" ] && [ "$rl_week" != "null" ]; }; then
+  record_reading 2>/dev/null
+fi
 
 RESET="\033[0m"
 DIM="\033[2m"
