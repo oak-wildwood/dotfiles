@@ -16,11 +16,6 @@
     "skill-creator@claude-plugins-official": true,
     "mattpocock-skills@claude-plugins-official": true
   },
-  "modelSettings": {
-    "claude-sonnet-5-5": {
-      "effortLevel": "medium"
-    }
-  },
   "tui": "fullscreen",
   "autoMode": {
     "environment": [
