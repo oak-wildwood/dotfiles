@@ -13,6 +13,7 @@ input=$(cat)
 
 cwd=$(echo "$input" | jq -r '.workspace.current_dir')
 model=$(echo "$input" | jq -r '.model.display_name')
+effort=$(echo "$input" | jq -r '.effort.level // empty')
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
 rl_five=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
@@ -78,8 +79,9 @@ make_bar() {
   printf "%s ${color}%d%%${RESET}" "$moon" "$rounded"
 }
 
-# --- model (bold magenta, ✦) ---
+# --- model (bold magenta, ✦) + effort level in dim parens, omitted when the model has none ---
 model_segment=$(printf "${BOLD_MAGENTA}✦ %s${RESET}" "$model")
+[ -n "$effort" ] && model_segment="${model_segment}$(printf " ${DIM}(%s)${RESET}" "$effort")"
 
 # --- directory (bold cyan, ⌂): ~ for home, otherwise basename ---
 if [ "$cwd" = "$HOME" ]; then
