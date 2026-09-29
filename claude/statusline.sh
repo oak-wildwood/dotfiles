@@ -137,6 +137,8 @@ clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 # --- assemble, responsive to terminal width ---
 # Claude Code sets COLUMNS before running this script (tput cols can't see the
 # terminal here). It only re-runs on events, so a resize shows up at the next one.
+#   fits on one row: 1 line, whenever the whole thing fits in COLUMNS
+#     model | dir branch | CONTEXT | 5h | 7d | cost | clock
 #   wide   (>= WIDE_COLS): 2 lines
 #     model | dir branch
 #     CONTEXT | 5h | 7d | cost | clock
@@ -145,6 +147,7 @@ clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 #     CONTEXT
 #     5h | 7d | cost | clock
 WIDE_COLS=80
+FIT_SLACK=2   # emoji widths are approximate, so leave a little room
 
 # Join the non-empty arguments with the separator.
 join_segments() {
@@ -156,11 +159,27 @@ join_segments() {
   printf '%s' "$out"
 }
 
-line1=$(join_segments "$model_segment" "${dir_segment}${branch_segment}")
+# Printed width in terminal columns: ANSI codes removed, and the moon emoji
+# counted double because they render two columns wide.
+visible_width() {
+  local esc plain no_moons
+  esc=$(printf '\033')
+  plain=$(printf '%s' "$1" | sed "s/${esc}\[[0-9;]*m//g")
+  export LC_ALL=en_US.UTF-8
+  no_moons="${plain//[🌑🌒🌓🌔🌕]/}"
+  echo $(( ${#plain} + ${#plain} - ${#no_moons} ))
+}
 
-if [ "${COLUMNS:-$WIDE_COLS}" -ge "$WIDE_COLS" ]; then
+line1=$(join_segments "$model_segment" "${dir_segment}${branch_segment}")
+line2="" line3=""
+
+one_row=$(join_segments "$model_segment" "${dir_segment}${branch_segment}" \
+  "$context_segment" "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
+
+if [ -n "${COLUMNS:-}" ] && [ $(( $(visible_width "$one_row") + FIT_SLACK )) -le "$COLUMNS" ]; then
+  line1="$one_row"
+elif [ "${COLUMNS:-$WIDE_COLS}" -ge "$WIDE_COLS" ]; then
   line2=$(join_segments "$context_segment" "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
-  line3=""
 else
   line2="$context_segment"
   line3=$(join_segments "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
