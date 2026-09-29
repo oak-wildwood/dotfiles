@@ -106,7 +106,7 @@ fi
 # --- context usage bar ---
 context_segment=""
 if [ -n "$used" ] && [ "$used" != "null" ]; then
-  context_segment=$(printf "${DIM}ctx${RESET} %s" "$(make_bar "$used")")
+  context_segment=$(printf "${DIM}CONTEXT${RESET} %s" "$(make_bar "$used")")
 fi
 
 # --- session cost (bold blue, $X.XX) ---
@@ -138,11 +138,11 @@ clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 # Claude Code sets COLUMNS before running this script (tput cols can't see the
 # terminal here). It only re-runs on events, so a resize shows up at the next one.
 #   wide   (>= WIDE_COLS): 2 lines
-#     model | dir branch | cost | clock
-#     ctx | 5h | 7d
+#     model | dir branch
+#     CONTEXT | 5h | 7d | cost | clock
 #   narrow (<  WIDE_COLS): 3 lines
-#     model | dir branch | cost | clock
-#     ctx
+#     model | dir branch
+#     CONTEXT | cost | clock
 #     5h | 7d
 WIDE_COLS=80
 
@@ -156,13 +156,13 @@ join_segments() {
   printf '%s' "$out"
 }
 
-line1=$(join_segments "$model_segment" "${dir_segment}${branch_segment}" "$cost_segment" "$clock_segment")
+line1=$(join_segments "$model_segment" "${dir_segment}${branch_segment}")
 
 if [ "${COLUMNS:-$WIDE_COLS}" -ge "$WIDE_COLS" ]; then
-  line2=$(join_segments "$context_segment" "$rl5_segment" "$rl7_segment")
+  line2=$(join_segments "$context_segment" "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
   line3=""
 else
-  line2="$context_segment"
+  line2=$(join_segments "$context_segment" "$cost_segment" "$clock_segment")
   line3=$(join_segments "$rl5_segment" "$rl7_segment")
 fi
 
