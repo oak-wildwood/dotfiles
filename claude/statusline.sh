@@ -56,19 +56,18 @@ BOLD_BLUE="\033[1;34m"
 
 SEP=$(printf "${DIM} │ ${RESET}")
 
-# --- 10-char block bar + %, color-coded green(<50) / yellow(50-79) / red(>=80) ---
+# --- moon-phase glyph + %, number color-coded green(<50) / yellow(50-79) / red(>=80) ---
+# Emoji can't take ANSI color, so the color signal lives on the number.
 make_bar() {
   local pct="$1"
-  local rounded filled empty bar_filled bar_empty color
+  local rounded moon color
   rounded=$(printf '%.0f' "$pct")
-  filled=$(( (rounded + 5) / 10 ))
-  [ "$filled" -gt 10 ] && filled=10
-  [ "$filled" -lt 0 ] && filled=0
-  empty=$((10 - filled))
-  bar_filled=""
-  [ "$filled" -gt 0 ] && bar_filled=$(printf '%0.s█' $(seq 1 "$filled"))
-  bar_empty=""
-  [ "$empty" -gt 0 ] && bar_empty=$(printf '%0.s░' $(seq 1 "$empty"))
+  if   [ "$rounded" -ge 88 ]; then moon="🌕"
+  elif [ "$rounded" -ge 63 ]; then moon="🌔"
+  elif [ "$rounded" -ge 38 ]; then moon="🌓"
+  elif [ "$rounded" -ge 13 ]; then moon="🌒"
+  else moon="🌑"
+  fi
   if [ "$rounded" -ge 80 ]; then
     color="$BOLD_RED"
   elif [ "$rounded" -ge 50 ]; then
@@ -76,7 +75,7 @@ make_bar() {
   else
     color="$BOLD_GREEN"
   fi
-  printf "${color}%s%s %d%%${RESET}" "$bar_filled" "$bar_empty" "$rounded"
+  printf "%s ${color}%d%%${RESET}" "$moon" "$rounded"
 }
 
 # --- model (bold magenta, ✦) ---
