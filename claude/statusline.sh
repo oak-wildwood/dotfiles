@@ -54,6 +54,7 @@ BOLD_GREEN="\033[1;32m"
 BOLD_YELLOW="\033[1;33m"
 BOLD_RED="\033[1;31m"
 BOLD_BLUE="\033[1;34m"
+BOLD_WHITE="\033[1;37m"
 
 SEP=$(printf "${DIM} │ ${RESET}")
 
@@ -103,10 +104,11 @@ if git --no-optional-locks -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 
   fi
 fi
 
-# --- context usage bar ---
+# --- context usage (bold white ◧ glyph, like the ✦ / ⌂ / ⎇ prefixes above) ---
+CONTEXT_GLYPH="◧"
 context_segment=""
 if [ -n "$used" ] && [ "$used" != "null" ]; then
-  context_segment=$(printf "${DIM}CONTEXT${RESET} %s" "$(make_bar "$used")")
+  context_segment=$(printf "${BOLD_WHITE}%s${RESET} %s" "$CONTEXT_GLYPH" "$(make_bar "$used")")
 fi
 
 # --- session cost (bold blue, $X.XX) ---
@@ -134,30 +136,24 @@ fi
 # --- clock: current local time, far-right segment ---
 clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 
-# --- assemble, responsive to terminal width ---
+# --- assemble: pack whole segments into rows that fit the terminal ---
 # Claude Code sets COLUMNS before running this script (tput cols can't see the
 # terminal here). It only re-runs on events, so a resize shows up at the next one.
-#   fits on one row: 1 line, whenever the whole thing fits in COLUMNS
-#     model | dir branch | CONTEXT | 5h | 7d | cost | clock
-#   wide   (>= WIDE_COLS): 2 lines
-#     model | dir branch
-#     CONTEXT | 5h | 7d | cost | clock
-#   narrow (<  WIDE_COLS): 3 lines
-#     model | dir branch
-#     CONTEXT
-#     5h | 7d | cost | clock
-WIDE_COLS=80
-FIT_SLACK=2   # emoji widths are approximate, so leave a little room
+#
+# Segments never split: each one moves to the next row as a unit, like flex-wrap.
+#   1. If everything fits on one row, use one row.
+#   2. Otherwise keep two groups apart and pack each into as few rows as fit:
+#        identity: model | dir branch
+#        gauges:   ◧ context | 5h | 7d | cost | clock
+# Cost and clock travel as one unit, so the clock is never left alone on a row.
+SEP_WIDTH=3         # " │ "
+FIT_SLACK=2         # emoji widths are approximate, so leave a little room
+DEFAULT_COLS=100    # used when COLUMNS is missing or not a number
 
-# Join the non-empty arguments with the separator.
-join_segments() {
-  local out="" seg
-  for seg in "$@"; do
-    [ -z "$seg" ] && continue
-    out="${out:+${out}${SEP}}${seg}"
-  done
-  printf '%s' "$out"
-}
+case "${COLUMNS:-}" in
+  ""|*[!0-9]*) cols=$DEFAULT_COLS ;;
+  *)           cols=$COLUMNS ;;
+esac
 
 # Printed width in terminal columns: ANSI codes removed, and the moon emoji
 # counted double because they render two columns wide.
@@ -170,23 +166,53 @@ visible_width() {
   echo $(( ${#plain} + ${#plain} - ${#no_moons} ))
 }
 
-line1=$(join_segments "$model_segment" "${dir_segment}${branch_segment}")
-line2="" line3=""
+tail_segment="$clock_segment"
+[ -n "$cost_segment" ] && tail_segment="${cost_segment}${SEP}${clock_segment}"
 
-one_row=$(join_segments "$model_segment" "${dir_segment}${branch_segment}" \
-  "$context_segment" "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
+SEGS=("$model_segment" "${dir_segment}${branch_segment}" \
+      "$context_segment" "$rl5_segment" "$rl7_segment" "$tail_segment")
+GAUGES_START=2      # index in SEGS where the gauges group begins
 
-if [ -n "${COLUMNS:-}" ] && [ $(( $(visible_width "$one_row") + FIT_SLACK )) -le "$COLUMNS" ]; then
-  line1="$one_row"
-elif [ "${COLUMNS:-$WIDE_COLS}" -ge "$WIDE_COLS" ]; then
-  line2=$(join_segments "$context_segment" "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
-else
-  line2="$context_segment"
-  line3=$(join_segments "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
-fi
+WIDTHS=()
+for seg in "${SEGS[@]}"; do
+  if [ -n "$seg" ]; then WIDTHS+=("$(visible_width "$seg")"); else WIDTHS+=(0); fi
+done
 
-output="$line1"
-[ -n "$line2" ] && output="${output}\n${line2}"
-[ -n "$line3" ] && output="${output}\n${line3}"
+output="" row="" row_width=0
+
+flush_row() {
+  [ -n "$row" ] && output="${output:+${output}\n}${row}"
+  row="" row_width=0
+}
+
+# Add a segment to the current row, or start a new row if it would not fit.
+add_segment() {
+  local seg="$1" width="$2"
+  [ -z "$seg" ] && return
+  if [ -n "$row" ] && [ $(( row_width + SEP_WIDTH + width + FIT_SLACK )) -gt "$cols" ]; then
+    flush_row
+  fi
+  if [ -n "$row" ]; then
+    row="${row}${SEP}${seg}"
+    row_width=$(( row_width + SEP_WIDTH + width ))
+  else
+    row="$seg"
+    row_width=$width
+  fi
+}
+
+# $1 = 1 to force a row break between the identity and gauges groups.
+pack() {
+  local i
+  output="" row="" row_width=0
+  for i in "${!SEGS[@]}"; do
+    [ "$1" = 1 ] && [ "$i" -eq "$GAUGES_START" ] && flush_row
+    add_segment "${SEGS[$i]}" "${WIDTHS[$i]}"
+  done
+  flush_row
+}
+
+pack 0
+case "$output" in *'\n'*) pack 1 ;; esac
 
 printf "%b" "$output"
