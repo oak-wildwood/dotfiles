@@ -134,13 +134,40 @@ fi
 # --- clock: current local time, far-right segment ---
 clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 
-# --- assemble: model | dir branch | ctx | cost | 5h | 7d | clock ---
-line="$model_segment"
-line="${line}${SEP}${dir_segment}${branch_segment}"
-[ -n "$context_segment" ] && line="${line}${SEP}${context_segment}"
-[ -n "$cost_segment" ] && line="${line}${SEP}${cost_segment}"
-[ -n "$rl5_segment" ] && line="${line}${SEP}${rl5_segment}"
-[ -n "$rl7_segment" ] && line="${line}${SEP}${rl7_segment}"
-line="${line}${SEP}${clock_segment}"
+# --- assemble, responsive to terminal width ---
+# Claude Code sets COLUMNS before running this script (tput cols can't see the
+# terminal here). It only re-runs on events, so a resize shows up at the next one.
+#   wide   (>= WIDE_COLS): 2 lines
+#     model | dir branch | cost | clock
+#     ctx | 5h | 7d
+#   narrow (<  WIDE_COLS): 3 lines
+#     model | dir branch | cost | clock
+#     ctx
+#     5h | 7d
+WIDE_COLS=80
 
-printf "%b" "$line"
+# Join the non-empty arguments with the separator.
+join_segments() {
+  local out="" seg
+  for seg in "$@"; do
+    [ -z "$seg" ] && continue
+    out="${out:+${out}${SEP}}${seg}"
+  done
+  printf '%s' "$out"
+}
+
+line1=$(join_segments "$model_segment" "${dir_segment}${branch_segment}" "$cost_segment" "$clock_segment")
+
+if [ "${COLUMNS:-$WIDE_COLS}" -ge "$WIDE_COLS" ]; then
+  line2=$(join_segments "$context_segment" "$rl5_segment" "$rl7_segment")
+  line3=""
+else
+  line2="$context_segment"
+  line3=$(join_segments "$rl5_segment" "$rl7_segment")
+fi
+
+output="$line1"
+[ -n "$line2" ] && output="${output}\n${line2}"
+[ -n "$line3" ] && output="${output}\n${line3}"
+
+printf "%b" "$output"
