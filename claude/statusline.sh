@@ -54,6 +54,7 @@ BOLD_GREEN="\033[1;32m"
 BOLD_YELLOW="\033[1;33m"
 BOLD_RED="\033[1;31m"
 BOLD_BLUE="\033[1;34m"
+BOLD_WHITE="\033[1;37m"
 
 SEP=$(printf "${DIM} │ ${RESET}")
 
@@ -103,10 +104,11 @@ if git --no-optional-locks -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 
   fi
 fi
 
-# --- context usage bar ---
+# --- context usage (bold white ◧ glyph, like the ✦ / ⌂ / ⎇ prefixes above) ---
+CONTEXT_GLYPH="◧"
 context_segment=""
 if [ -n "$used" ] && [ "$used" != "null" ]; then
-  context_segment=$(printf "${DIM}CONTEXT${RESET} %s" "$(make_bar "$used")")
+  context_segment=$(printf "${BOLD_WHITE}%s${RESET} %s" "$CONTEXT_GLYPH" "$(make_bar "$used")")
 fi
 
 # --- session cost (bold blue, $X.XX) ---
@@ -142,7 +144,7 @@ clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 #   1. If everything fits on one row, use one row.
 #   2. Otherwise keep two groups apart and pack each into as few rows as fit:
 #        identity: model | dir branch
-#        gauges:   CONTEXT | 5h | 7d | cost | clock
+#        gauges:   ◧ context | 5h | 7d | cost | clock
 # Cost and clock travel as one unit, so the clock is never left alone on a row.
 SEP_WIDTH=3         # " │ "
 FIT_SLACK=2         # emoji widths are approximate, so leave a little room
