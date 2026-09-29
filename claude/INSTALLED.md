@@ -9,3 +9,4 @@
 
 ## Plugins
 - skill-creator@claude-plugins-official
+- mattpocock-skills@claude-plugins-official
