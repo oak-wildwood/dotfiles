@@ -37,7 +37,7 @@ starship call, so a shell opened before you've installed it still works.
 | `zsh/zshrc` | `~/.zshrc` | Aliases, history, prompt |
 | `zsh/zprofile` | `~/.zprofile` | Homebrew shell environment |
 | `claude/settings.json` | `~/.claude/settings.json` | Claude Code preferences |
-| `claude/statusline.sh` | `~/.claude/statusline-command.sh` | Claude Code status line: model, dir, git, context and rate-limit bars |
+| `claude/statusline.sh` | `~/.claude/statusline-command.sh` | Claude Code status line: model, dir, git, cost, and context and rate-limit moon gauges, in one to three rows by terminal width |
 | `claude/INSTALLED.md` | — | A record of installed skills and plugins |
 
 ### The aliases
