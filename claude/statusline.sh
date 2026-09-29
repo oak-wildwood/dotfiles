@@ -142,8 +142,8 @@ clock_segment=$(printf "${DIM}⏱ %s${RESET}" "$(date +%H:%M)")
 #     CONTEXT | 5h | 7d | cost | clock
 #   narrow (<  WIDE_COLS): 3 lines
 #     model | dir branch
-#     CONTEXT | cost | clock
-#     5h | 7d
+#     CONTEXT
+#     5h | 7d | cost | clock
 WIDE_COLS=80
 
 # Join the non-empty arguments with the separator.
@@ -162,8 +162,8 @@ if [ "${COLUMNS:-$WIDE_COLS}" -ge "$WIDE_COLS" ]; then
   line2=$(join_segments "$context_segment" "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
   line3=""
 else
-  line2=$(join_segments "$context_segment" "$cost_segment" "$clock_segment")
-  line3=$(join_segments "$rl5_segment" "$rl7_segment")
+  line2="$context_segment"
+  line3=$(join_segments "$rl5_segment" "$rl7_segment" "$cost_segment" "$clock_segment")
 fi
 
 output="$line1"
