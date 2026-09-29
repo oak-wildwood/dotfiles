@@ -7,8 +7,14 @@
       "Bash(~/.local/bin/ynab-sync:*)"
     ]
   },
+  "model": "sonnet",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline-command.sh"
+  },
   "enabledPlugins": {
-    "skill-creator@claude-plugins-official": true
+    "skill-creator@claude-plugins-official": true,
+    "mattpocock-skills@claude-plugins-official": true
   },
   "tui": "fullscreen",
   "autoMode": {
@@ -37,10 +43,5 @@
       "**Trusted repo**: The git repository at /Users/oakwildwood/Vault (its working directory) — it currently has no configured remotes and no tracked files",
       "**Org-specific CLIs**: None configured"
     ]
-  },
-  "model": "opus",
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline-command.sh"
   }
 }
