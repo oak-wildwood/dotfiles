@@ -22,7 +22,7 @@ Prerequisites, in order — Homebrew first, since `.zprofile` calls it:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install starship gh jq
+brew install starship gh jq age zstd
 ```
 
 `bootstrap` tells you which of these are missing rather than failing, and `.zshrc` guards the

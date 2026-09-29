@@ -70,6 +70,8 @@ link "zsh/zshrc"            ".zshrc"
 link "zsh/zprofile"         ".zprofile"
 link "claude/settings.json" ".claude/settings.json"
 link "claude/statusline.sh"   ".claude/statusline-command.sh"
+link "bin/vault-backup"     ".local/bin/vault-backup"
+link "launchd/com.oakcooper.vault-backup.plist" "Library/LaunchAgents/com.oakcooper.vault-backup.plist"
 
 printf '\n%sChecks%s\n' "$BOLD" "$RESET"
 
@@ -83,7 +85,7 @@ case "$email" in
   *)                          warn "global git user.email is $email — not a noreply address" ;;
 esac
 
-for tool in starship gh jq; do
+for tool in starship gh jq age zstd; do
   command -v "$tool" >/dev/null 2>&1 \
     && skip "$tool installed" \
     || warn "$tool not installed — brew install $tool"

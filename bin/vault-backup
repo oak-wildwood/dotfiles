@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+#
+# vault-backup — compressed, encrypted snapshot of ~/Vault into a Proton Drive folder.
+#
+# tar -> zstd -> age (public key only, so nothing secret lives on this machine's schedule)
+#
+# Config lives in ~/.config/vault-backup/ and is not tracked:
+#   config         SRC, DEST, KEEP_DAILY, KEEP_MONTHLY
+#   recipient.txt  age public key
+#
+#   vault-backup                     run a backup now
+#   vault-backup --dry-run           show what would happen, write nothing
+#   vault-backup --list              list existing snapshots
+#   vault-backup --verify FILE KEY   decrypt and test a snapshot (needs the private key)
+
+set -euo pipefail
+
+CONF="$HOME/.config/vault-backup"
+LOG="$HOME/Library/Logs/vault-backup.log"
+
+# shellcheck disable=SC1091
+. "$CONF/config"
+RECIPIENT="$(cat "$CONF/recipient.txt")"
+KEEP_DAILY="${KEEP_DAILY:-30}"
+KEEP_MONTHLY="${KEEP_MONTHLY:-12}"
+
+log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
+
+fail() {
+  log "FAILED: $*"
+  osascript -e "display notification \"$*\" with title \"Vault backup failed\"" 2>/dev/null || true
+  exit 1
+}
+
+snapshots() { find "$DEST" -maxdepth 1 -name 'vault-????-??-??.tar.zst.age' | sort; }
+
+prune() {
+  local all keep
+  all="$(snapshots)"
+  [ -n "$all" ] || return 0
+  # newest KEEP_DAILY files, plus the newest file of each of the latest KEEP_MONTHLY months
+  keep="$(
+    {
+      printf '%s\n' "$all" | tail -n "$KEEP_DAILY"
+      printf '%s\n' "$all" | awk '{ m = substr($0, length($0) - 22, 7); last[m] = $0 } END { for (m in last) print m "\t" last[m] }' \
+        | sort | tail -n "$KEEP_MONTHLY" | cut -f2
+    } | sort -u
+  )"
+  comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$keep") | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if $DRY_RUN; then echo "would prune: $f"; else rm -f -- "$f"; log "pruned $(basename "$f")"; fi
+  done
+}
+
+DRY_RUN=false
+case "${1:-}" in
+  --list) snapshots | while IFS= read -r f; do ls -lh "$f" | awk -v n="$(basename "$f")" '{print $5"\t"n}'; done; exit 0 ;;
+  --verify)
+    [ $# -eq 3 ] || { echo "usage: vault-backup --verify FILE KEYFILE" >&2; exit 2; }
+    age -d -i "$3" "$2" | zstd -dc | tar -tf - >/dev/null && echo "OK: $2"
+    exit 0 ;;
+  --dry-run) DRY_RUN=true ;;
+  "") ;;
+  *) echo "unknown option: $1" >&2; exit 2 ;;
+esac
+
+mkdir -p "$(dirname "$LOG")"
+[ -d "$SRC" ] || fail "source missing: $SRC"
+[ -d "$DEST" ] || fail "Proton Drive folder missing (is Proton Drive running?)"
+
+NAME="vault-$(date +%Y-%m-%d).tar.zst.age"
+OUT="$DEST/$NAME"
+TMP="$DEST/.$NAME.partial"
+
+if $DRY_RUN; then
+  log "dry run: would write $NAME"
+  prune
+  exit 0
+fi
+
+trap 'rm -f -- "$TMP"' EXIT
+
+# COPYFILE_DISABLE stops macOS tar from adding ._ resource-fork files.
+COPYFILE_DISABLE=1 tar --exclude='.DS_Store' -C "$(dirname "$SRC")" -cf - "$(basename "$SRC")" \
+  | zstd -q -T0 -19 \
+  | age -r "$RECIPIENT" -o "$TMP" \
+  || fail "tar/zstd/age pipeline errored"
+
+SIZE="$(stat -f %z "$TMP")"
+[ "$SIZE" -gt 1024 ] || fail "snapshot suspiciously small ($SIZE bytes)"
+[ "$(head -c 21 "$TMP")" = "age-encryption.org/v1" ] || fail "output is not an age file"
+
+mv -f -- "$TMP" "$OUT"
+log "wrote $NAME ($SIZE bytes)"
+prune
